@@ -1,0 +1,18 @@
+#cloud-config
+write_files:
+  - path: /opt/rancher/bin/start.sh
+    permissions: "0770"
+    content: |
+      #!/bin/sh
+      cat > /opt/rancher/bin/kickoff.sh << EOF
+      #!/bin/bash
+      set -x
+      while ! docker version >/dev/null 2>&1; do echo 'waiting for docker...'; sleep 2; done
+      while ! ping -c 1 8.8.8.8 >/dev/null 2>&1; do echo 'waiting for net...'; sleep 2; done
+
+      sleep 3
+      docker run -d --restart=unless-stopped -p 8080:8080 -p 9345:9345 ${rancher_version} --db-host ${database_address} --db-user ${database_username} --db-pass Password --db-name ${database_name} --advertise-address `ifconfig eth0 | grep inet | awk {'print $2'} | cut -c6- | head -n 1`
+      EOF
+      sudo chmod +x /opt/rancher/bin/kickoff.sh
+      set +x
+      sudo sh /opt/rancher/bin/kickoff.sh &
